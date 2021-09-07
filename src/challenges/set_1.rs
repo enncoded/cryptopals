@@ -1,10 +1,15 @@
-use crate::utils::*;
-use crate::utils::algos::{calc_char_freq_for_bytes, calc_hamming_distance};
-use crate::utils::xor::repeating_key_xor;
-use std::fs::read_to_string;
+#![allow(unused_variables)]
 
-#[test]
+use crate::utils::*;
+use crate::utils::algos::{calc_char_freq_for_bytes};
+use crate::utils::xor::{repeating_key_xor, break_repeating_key_xor};
+use crate::utils::misc::{read_no_newlines, read_lines};
+use crate::utils::aes::{aes_ecb_decrypt};
+use crate::utils::into_bytes::from_hex;
+use itertools::Itertools;
+
 // convert hex to base64
+#[test]
 fn challenge_1() {
     let input = "49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d";
     let expected = "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t";
@@ -13,8 +18,8 @@ fn challenge_1() {
     assert_eq!(expected, output);
 }
 
-#[test]
 // Fixed (2 equal length buffers) XOR
+#[test]
 fn challenge_2() {
     let input = into_bytes::from_hex("1c0111001f010100061a024b53535009181c"); // encoded hexadecimal string
     let xor_key = into_bytes::from_hex("686974207468652062756c6c277320657965");
@@ -26,6 +31,7 @@ fn challenge_2() {
     assert_eq!(expected, output)
 }
 
+// Single-byte XOR cipher
 #[test]
 fn challenge_3() {
     let input = into_bytes::from_hex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736");
@@ -36,6 +42,7 @@ fn challenge_3() {
     // println!("{} won. Key used was {}", winning_string, winning_key);
 }
 
+// Detect single-character XOR
 #[test]
 fn challenge_4() {
     let input_lines = misc::read_lines("resources/set1_chal4.txt").expect("Error reading file!");
@@ -53,6 +60,7 @@ fn challenge_4() {
     }
 }
 
+// Implement repeating-key XOR
 #[test]
 fn challenge_5() {
     let input = b"Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
@@ -64,46 +72,45 @@ fn challenge_5() {
     assert_eq!(output, expected)
 }
 
+// Break repeating-key XOR
 #[test]
 fn challenge_6() {
     // Test hamming distance function
     // assert_eq!(calc_hamming_distance(b"this is a test".to_vec(), b"wokka wokka!!!".to_vec()), 37);
-
-    // Ugly code warning :)
-    let input_string: String = read_to_string("resources/set1_chal6.txt").expect("Error reading file")
-        .chars().into_iter().filter(|c| *c != '\n').collect();
+    let input_string = read_no_newlines("resources/set1_chal6.txt");
     let input_bytes: Vec<u8> = into_bytes::from_base64(input_string.as_bytes());
 
-    let smallest_keysize = (2..41).map(|keysize| {
-        let keysize_blocks: Vec<Vec<u8>> = input_bytes.chunks_exact(keysize).map(|b| b.to_vec()).collect();
-
-        let mut kb_iter = keysize_blocks.iter();
-        let mut distances = Vec::new();
-        while kb_iter.len() >= 2 {
-            let first_split = kb_iter.next().unwrap();
-            let second_split = kb_iter.next().unwrap();
-
-            distances.push(calc_hamming_distance(first_split.clone(), second_split.clone()) as f32 / keysize as f32);
-        }
-        let avg_distance = distances.iter().sum::<f32>() / distances.len() as f32;
-        (keysize, avg_distance)
-    }).min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).unwrap().0;
-
-    let keysize_blocks: Vec<Vec<u8>> = input_bytes.chunks_exact(smallest_keysize).map(|b| b.to_vec()).collect();
-    let mut inner_iters: Vec<_> = keysize_blocks.iter().map(|c| c.into_iter()).collect();
-    let transposed_blocks: Vec<Vec<u8>> = (0..smallest_keysize).map(|_| {
-        inner_iters.iter_mut().map(|ci| *ci.next().unwrap()).collect::<Vec<u8>>()
-    }).collect();
-
-    // println!("Smallest keysize: {} - {}, {}", smallest_keysize, keysize_blocks.len(), transposed_blocks.len());
-
-    let key_bytes: Vec<u8> = transposed_blocks.iter().map(|inner_vec| {
-        calc_char_freq_for_bytes(inner_vec.clone()).1
-    }).collect();
-
-    // println!("key: {}", String::from_utf8(key.to_vec()));
-    let decrypted_message = String::from_utf8(repeating_key_xor(input_bytes.as_slice(), key_bytes.as_slice())).unwrap();
-    // println!("key: {:?},\nmessage: {}", key_bytes, decrypted_message);
+    let key = break_repeating_key_xor(input_bytes.as_slice());
+    let decrypted_message = String::from_utf8(repeating_key_xor(input_bytes.as_slice(), key.as_slice())).unwrap();
+    // println!("key: {:?},\nmessage: {}", String::from_utf8(key).unwrap(),
+    //          String::from_utf8(decrypted_message).unwrap());
+    assert!(decrypted_message.starts_with("I'm back and I'm ringin' the bell"));
 }
 
+// Decrypt AES in ECB mode
+#[test]
+fn challenge_7() {
+    let input_string = read_no_newlines("resources/set1_chal7.txt");
+    let input_bytes = into_bytes::from_base64(input_string.as_bytes());
+    let key = b"YELLOW SUBMARINE";
 
+    let result = String::from_utf8(aes_ecb_decrypt(input_bytes.as_slice(), key)).unwrap();
+
+    assert!(result.starts_with("I'm back and I'm ringin' the bell"));
+}
+
+// Detect AES in ECB mode
+#[test]
+fn challenge_8() {
+    let input_lines = read_lines("resources/set1_chal8.txt").unwrap().map(|line| line.unwrap()).collect_vec();
+
+    let scores = input_lines.iter().map(|line| {
+        let line_bytes = from_hex(line.as_str());
+        let duplicates = 16 - line_bytes.chunks(16).unique().collect_vec().len();
+        (line, duplicates)
+    });
+    let sorted = scores.sorted_by(|a, b| a.1.cmp(&b.1)).collect_vec();
+    let first = sorted.first().unwrap();
+
+    println!("The AES-ECB encrypted string block is {}, with {} duplicates", first.0, first.1);
+}
