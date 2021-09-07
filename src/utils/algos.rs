@@ -47,8 +47,7 @@ pub fn char_freq(input: &[u8]) -> f32 {
     score
 }
 
-// pub fn calc_char_freq_for_bytes(input: Vec<u8>) -> (String, u8) {
-pub fn calc_char_freq_for_bytes(input: Vec<u8>) -> String {
+pub fn calc_char_freq_for_bytes(input: Vec<u8>) -> (String, u8) {
     let mut winning_key: u8 = 0;
     let mut highest = 0.0;
     let mut winning_string = String::new();
@@ -64,8 +63,7 @@ pub fn calc_char_freq_for_bytes(input: Vec<u8>) -> String {
         //println!("{} - {}", String::from_utf8(xor_output).unwrap(), score);
     }
 
-    // (winning_string.clone(), winning_key)
-    winning_string.clone()
+    (winning_string.clone(), winning_key)
 }
 
 // Computes the edit distance between 2 strings
