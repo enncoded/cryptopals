@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{File, read_to_string};
 use std::path::Path;
 use std::io::{self, BufRead};
 
@@ -7,4 +7,9 @@ use std::io::{self, BufRead};
 pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
+}
+
+pub fn read_no_newlines(filename: &str) -> String {
+    read_to_string(filename).expect("Error reading file")
+        .chars().into_iter().filter(|c| *c != '\n').collect()
 }
