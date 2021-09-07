@@ -2,7 +2,6 @@ use crate::utils::*;
 use crate::utils::algos::{calc_char_freq_for_bytes, calc_hamming_distance};
 use crate::utils::xor::repeating_key_xor;
 use std::fs::read_to_string;
-use std::path::Iter;
 
 #[test]
 // convert hex to base64
@@ -31,7 +30,7 @@ fn challenge_2() {
 fn challenge_3() {
     let input = into_bytes::from_hex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736");
 
-    let winning_string = algos::calc_char_freq_for_bytes(input);
+    let (winning_string, _) = algos::calc_char_freq_for_bytes(input);
 
     assert_eq!(winning_string, "Cooking MC's like a pound of bacon");
     // println!("{} won. Key used was {}", winning_string, winning_key);
@@ -43,12 +42,10 @@ fn challenge_4() {
     for line in input_lines {
         if let Err(e) = line {
             eprintln!("Error while reading line: {}", e);
-        }
-
-        else {
+        } else {
             let bytes = into_bytes::from_hex(line.unwrap().as_str().trim());
             // let (decrypted, _key) = calc_char_freq_for_bytes(bytes);
-            let decrypted = calc_char_freq_for_bytes(bytes);
+            let (decrypted, _) = calc_char_freq_for_bytes(bytes);
             if decrypted != String::default() {
                 // println!("{} decrypted with key {}", decrypted, key);
             }
@@ -69,35 +66,44 @@ fn challenge_5() {
 
 #[test]
 fn challenge_6() {
+    // Test hamming distance function
+    // assert_eq!(calc_hamming_distance(b"this is a test".to_vec(), b"wokka wokka!!!".to_vec()), 37);
+
     // Ugly code warning :)
     let input_string: String = read_to_string("resources/set1_chal6.txt").expect("Error reading file")
         .chars().into_iter().filter(|c| *c != '\n').collect();
-    let mut input_bytes: Vec<u8> = into_bytes::from_base64(input_string.as_bytes());
+    let input_bytes: Vec<u8> = into_bytes::from_base64(input_string.as_bytes());
 
-    // Test hamming distance function
-    assert_eq!(calc_hamming_distance(b"this is a test".to_vec(), b"wokka wokka!!!".to_vec()), 37);
+    let smallest_keysize = (2..41).map(|keysize| {
+        let keysize_blocks: Vec<Vec<u8>> = input_bytes.chunks_exact(keysize).map(|b| b.to_vec()).collect();
 
-    let (smallest_keysize, smallest_distance) = (2..40).map( |keysize| {
-        let (first_split, remaining) = input_bytes.split_at(keysize);
-        let (second_split, remaining) = remaining.split_at(keysize);
+        let mut kb_iter = keysize_blocks.iter();
+        let mut distances = Vec::new();
+        while kb_iter.len() >= 2 {
+            let first_split = kb_iter.next().unwrap();
+            let second_split = kb_iter.next().unwrap();
 
-        let normalized_distance = calc_hamming_distance(first_split.to_vec(), second_split.to_vec()) / keysize as u32;
-        (keysize, normalized_distance)
-    }).min_by(|a, b| a.1.cmp(&b.1)).unwrap();
-
-    // println!("Smallest keysize: {} - {}", smallest_keysize, smallest_distance);
+            distances.push(calc_hamming_distance(first_split.clone(), second_split.clone()) as f32 / keysize as f32);
+        }
+        let avg_distance = distances.iter().sum::<f32>() / distances.len() as f32;
+        (keysize, avg_distance)
+    }).min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).unwrap().0;
 
     let keysize_blocks: Vec<Vec<u8>> = input_bytes.chunks_exact(smallest_keysize).map(|b| b.to_vec()).collect();
-
     let mut inner_iters: Vec<_> = keysize_blocks.iter().map(|c| c.into_iter()).collect();
     let transposed_blocks: Vec<Vec<u8>> = (0..smallest_keysize).map(|_| {
         inner_iters.iter_mut().map(|ci| *ci.next().unwrap()).collect::<Vec<u8>>()
     }).collect();
 
-    let key: String = transposed_blocks.iter().map(|inner_vec| {
-        calc_char_freq_for_bytes(inner_vec.clone())
+    // println!("Smallest keysize: {} - {}, {}", smallest_keysize, keysize_blocks.len(), transposed_blocks.len());
+
+    let key_bytes: Vec<u8> = transposed_blocks.iter().map(|inner_vec| {
+        calc_char_freq_for_bytes(inner_vec.clone()).1
     }).collect();
 
-    println!("key: {}", key);
-    // println!("{:#?}", transposed_blocks);
+    // println!("key: {}", String::from_utf8(key.to_vec()));
+    let decrypted_message = String::from_utf8(repeating_key_xor(input_bytes.as_slice(), key_bytes.as_slice())).unwrap();
+    // println!("key: {:?},\nmessage: {}", key_bytes, decrypted_message);
 }
+
+
