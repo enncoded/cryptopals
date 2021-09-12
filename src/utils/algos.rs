@@ -1,5 +1,6 @@
 use crate::utils::*;
 use std::convert::TryFrom;
+use std::io::Bytes;
 
 pub fn char_freq(input: &[u8]) -> f32 {
     let mut score = 0.0;
@@ -75,4 +76,29 @@ pub fn calc_hamming_distance(first: Vec<u8>, second: Vec<u8>) -> u32 {
     sum += u32::try_from(i32::try_from(first.len() - second.len()).unwrap().abs() * 8).unwrap();
 
     sum
+}
+
+// Pads a message to a certain length to make encryption easier
+pub fn pkcs7_pad(input: Vec<u8>, block_size: usize) -> Vec<u8> {
+    let input_len = input.len();
+    if input_len % block_size == 0 {
+        return input;
+    }
+
+    let mut output = input.clone();
+    let padding = ((input_len / block_size + 1) * block_size - input_len) as u8;
+    for i in 0..padding {
+        output.push(padding);
+    }
+
+    output
+}
+
+pub fn pkcs7_unpad(input: Vec<u8>, block_size: usize) -> Vec<u8> {
+    let last_char = input.last().unwrap();
+    let mut input_clone = input.clone();
+    while input_clone.last().unwrap() == last_char {
+        input_clone.pop();
+    }
+    input_clone
 }

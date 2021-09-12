@@ -4,7 +4,7 @@ use crate::utils::*;
 use crate::utils::algos::{calc_char_freq_for_bytes};
 use crate::utils::xor::{repeating_key_xor, break_repeating_key_xor};
 use crate::utils::misc::{read_no_newlines, read_lines};
-use crate::utils::aes::{aes_ecb_decrypt};
+use crate::utils::aes::{aes_128_ecb_decrypt, aes_128_ecb_encrypt};
 use crate::utils::into_bytes::from_hex;
 use itertools::Itertools;
 
@@ -94,9 +94,11 @@ fn challenge_7() {
     let input_bytes = into_bytes::from_base64(input_string.as_bytes());
     let key = b"YELLOW SUBMARINE";
 
-    let result = String::from_utf8(aes_ecb_decrypt(input_bytes.as_slice(), key)).unwrap();
+    let result = String::from_utf8(aes_128_ecb_decrypt(input_bytes.as_slice(), key)).unwrap();
 
     assert!(result.starts_with("I'm back and I'm ringin' the bell"));
+    let encrypted = aes_128_ecb_encrypt(input_bytes.as_slice(), key);
+    assert_eq!(input_bytes, aes_128_ecb_decrypt(encrypted.as_slice(), key));
 }
 
 // Detect AES in ECB mode
@@ -112,5 +114,5 @@ fn challenge_8() {
     let sorted = scores.sorted_by(|a, b| a.1.cmp(&b.1)).collect_vec();
     let first = sorted.first().unwrap();
 
-    println!("The AES-ECB encrypted string block is {}, with {} duplicates", first.0, first.1);
+    // println!("The AES-ECB encrypted string block is {}, with {} duplicates", first.0, first.1);
 }
