@@ -4,7 +4,7 @@ use crate::utils::*;
 use crate::utils::algos::{calc_char_freq_for_bytes};
 use crate::utils::xor::{repeating_key_xor, break_repeating_key_xor};
 use crate::utils::misc::{read_no_newlines, read_lines};
-use crate::utils::aes::{aes_128_ecb_decrypt, aes_128_ecb_encrypt};
+use crate::utils::aes::{aes_128_ecb_decrypt, aes_128_ecb_encrypt, count_duplicate_blocks};
 use crate::utils::into_bytes::from_hex;
 use itertools::Itertools;
 
@@ -106,13 +106,14 @@ fn challenge_7() {
 fn challenge_8() {
     let input_lines = read_lines("resources/set1_chal8.txt").unwrap().map(|line| line.unwrap()).collect_vec();
 
-    let scores = input_lines.iter().map(|line| {
+    let scores = input_lines.iter().enumerate().map(|(line_num, line)| {
         let line_bytes = from_hex(line.as_str());
-        let duplicates = 16 - line_bytes.chunks(16).unique().collect_vec().len();
-        (line, duplicates)
+        let duplicates = count_duplicate_blocks(line_bytes.as_slice(), 16);
+        (line_num + 1, line, duplicates)
     });
-    let sorted = scores.sorted_by(|a, b| a.1.cmp(&b.1)).collect_vec();
-    let first = sorted.first().unwrap();
+    let sorted = scores.sorted_by(|a, b| a.2.cmp(&b.2)).collect_vec();
+    let winner = sorted.last().unwrap();
 
-    // println!("The AES-ECB encrypted string block is {}, with {} duplicates", first.0, first.1);
+    assert_eq!(winner.0, 133);
+    // println!("The AES-ECB encrypted string block is on line {}: \n{}\nwith {} duplicates", winner.0, winner.1, winner.2);
 }
