@@ -96,6 +96,7 @@ fn challenge_7() {
 
     let result = String::from_utf8(aes_128_ecb_decrypt(input_bytes.as_slice(), key)).unwrap();
 
+    // println!("result: {}", result);
     assert!(result.starts_with("I'm back and I'm ringin' the bell"));
     let encrypted = aes_128_ecb_encrypt(input_bytes.as_slice(), key);
     assert_eq!(input_bytes, aes_128_ecb_decrypt(encrypted.as_slice(), key));
