@@ -1,6 +1,9 @@
 use crate::utils::*;
 use std::convert::TryFrom;
+use std::error::Error;
 use std::io::Bytes;
+use std::string::ParseError;
+use itertools::Itertools;
 
 pub fn char_freq(input: &[u8]) -> f32 {
     let mut score = 0.0;
@@ -78,27 +81,51 @@ pub fn calc_hamming_distance(first: Vec<u8>, second: Vec<u8>) -> u32 {
     sum
 }
 
-// Pads a message to a certain length to make encryption easier
-pub fn pkcs7_pad(input: Vec<u8>, block_size: usize) -> Vec<u8> {
-    let input_len = input.len();
-    if input_len % block_size == 0 {
-        return input;
+fn pkcs7_pad_block(input_block: &[u8], block_size: usize) -> Vec<u8> {
+    let mut output = input_block.clone().to_vec();
+    let mut pad_length = block_size - input_block.len();
+    let pad_byte = pad_length as u8;
+
+    if pad_length == 0 {
+        pad_length = block_size;
     }
 
-    let mut output = input.clone();
-    let padding = ((input_len / block_size + 1) * block_size - input_len) as u8;
-    for i in 0..padding {
-        output.push(padding);
+    for i in 0..pad_length {
+        output.push(pad_byte);
     }
 
     output
 }
 
-pub fn pkcs7_unpad(input: Vec<u8>, block_size: usize) -> Vec<u8> {
-    let last_char = input.last().unwrap();
-    let mut input_clone = input.clone();
-    while input_clone.last().unwrap() == last_char {
-        input_clone.pop();
+// Pads a message
+pub fn pkcs7_pad(input: &[u8], block_size: usize) -> Vec<u8> {
+    let mut output = input.clone().to_vec();
+    let input_len = input.len();
+
+    let mut padding_len = block_size - (input_len % block_size);
+    if padding_len == 0 {
+        padding_len = block_size;
     }
-    input_clone
+
+    let padding_byte = padding_len as u8;
+    for i in 0..padding_len {
+        output.push(padding_byte);
+    }
+
+    output
+}
+
+pub fn pkcs7_unpad(input: &[u8], block_size: usize) -> Vec<u8> {
+    validate_pkcs7_padding(input, block_size);
+
+    let input_len = input.len();
+    let pad_len = input[input_len - 1] as usize;
+    input[0..(input_len - pad_len)].to_vec()
+}
+
+
+fn validate_pkcs7_padding(input: &[u8], block_size: usize) {
+    if input.len() % block_size != 0 {
+        panic!("Invalid padding for input: {:?}", input);
+    }
 }

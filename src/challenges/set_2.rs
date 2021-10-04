@@ -10,15 +10,15 @@ use itertools::Itertools;
 fn challenge_9() {
     let input = b"abc";
     let block_size = 8 as usize;
-    assert_eq!(pkcs7_pad(input.to_vec(), block_size), b"abc\x05\x05\x05\x05\x05".to_vec());
+    assert_eq!(pkcs7_pad(input, block_size), b"abc\x05\x05\x05\x05\x05".to_vec());
 
     let input = b"abcdefghi";
     let block_size = 8 as usize;
-    assert_eq!(pkcs7_pad(input.to_vec(), block_size), b"abcdefghi\x07\x07\x07\x07\x07\x07\x07".to_vec());
+    assert_eq!(pkcs7_pad(input, block_size), b"abcdefghi\x07\x07\x07\x07\x07\x07\x07".to_vec());
 
     let input = b"abc";
     let block_size = 2 as usize;
-    assert_eq!(pkcs7_pad(input.to_vec(), block_size), b"abc\x01".to_vec());
+    assert_eq!(pkcs7_pad(input, block_size), b"abc\x01".to_vec());
 }
 
 // Implement CBC mode
@@ -37,14 +37,24 @@ fn challenge_10() {
     assert_eq!(input_bytes, re_encrypted);
 }
 
+// An ECB/CBC detection oracle
 #[test]
 fn challenge_11() {
     for i in 0..=10 {
         let line_bytes = b"A".repeat(50);
-        let (method, encrypted) = encrypt_data_random_alg(line_bytes.as_slice());
-        let duplicates = count_duplicate_blocks(encrypted.as_slice(), 16);
-        if duplicates != 0 {
-            println!("{} - found {} duplicates for {:?}", method.to_ascii_uppercase(), duplicates, line_bytes);
-        }
+        let (method, encrypted) = encryption_oracle(&line_bytes);
+        let determined_mode = determine_cipher(&encrypted);
+        assert_eq!(method, determined_mode)
     }
+}
+
+#[test]
+fn challenge_12() {
+    let input = b"aaaaaaaaaaaaaaaa";
+    let padded = pkcs7_pad(input, 16);
+    println!("{}", padded.len());
+    // let my_input = "Look to those who walked before to lead those who walk after".as_bytes();
+    // println!("asdf {:?}", my_input);
+    // let ciphertext = encryption_oracle_ecb_const_key(my_input);
+    // let guessed_block_size = determine_block_size(ciphertext);
 }
