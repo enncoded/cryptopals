@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::io::repeat;
 use crate::utils::algos::{pkcs7_pad, pkcs7_unpad};
 use crate::utils::misc::{read_no_newlines, read_lines};
 use crate::utils::into_bytes::{from_base64, from_hex};
@@ -43,18 +45,32 @@ fn challenge_11() {
     for i in 0..=10 {
         let line_bytes = b"A".repeat(50);
         let (method, encrypted) = encryption_oracle(&line_bytes);
-        let determined_mode = determine_cipher(&encrypted);
+        let determined_mode = determine_cipher(&encrypted, 16);
         assert_eq!(method, determined_mode)
     }
 }
 
+// Byte-at-a-time ECB decryption (Simple)
 #[test]
 fn challenge_12() {
-    let input = b"aaaaaaaaaaaaaaaa";
-    let padded = pkcs7_pad(input, 16);
-    println!("{}", padded.len());
-    // let my_input = "Look to those who walked before to lead those who walk after".as_bytes();
-    // println!("asdf {:?}", my_input);
-    // let ciphertext = encryption_oracle_ecb_const_key(my_input);
-    // let guessed_block_size = determine_block_size(ciphertext);
+    let plaintext = from_base64(b"Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK");
+    let block_size = guess_block_size(&chal_12_oracle);
+    let encrypted_msg = chal_12_oracle(plaintext.as_slice());
+    // assert_eq!(determine_cipher(encrypted_msg.as_slice(), block_size), CipherMode::ECB);
+
+    let mut decrypted = Vec::new();
+    for i in 0..encrypted_msg.len() {
+        let byte = decrypt_byte(decrypted.as_slice(), i, block_size);
+
+        // This is kind of slow, so break early when it finishes the actual message
+        if !byte.is_ascii_whitespace() && !byte.is_ascii_alphanumeric() && !byte.is_ascii_punctuation() {
+            break;
+        }
+
+        decrypted.push(byte);
+    }
+
+    let decrypted = String::from_utf8(decrypted).unwrap();
+    // println!("Decrypted (len {}): {}", decrypted.len(), decrypted);
+    assert!(decrypted.starts_with("Rollin' in my 5.0"));
 }
