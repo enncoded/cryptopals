@@ -113,7 +113,7 @@ pub fn decrypt_byte(already_decrypted: &[u8], idx: usize, block_size: usize) -> 
 
     // Get the short output, where the encryption function will fill bytes from the plaintext
     // such that the byte to find is at the end of a block
-    let padding = b"A".repeat(block_size - idx - expected_block_begin + 1);
+    let padding = b"A".repeat(block_size - (idx - expected_block_begin + 1));
     let padding_output = chal_12_oracle(padding.as_slice());
     let expected_block = padding_output.iter().skip(expected_block_begin).take(block_size).map(|b| *b).collect_vec();
 
